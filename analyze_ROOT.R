@@ -24,7 +24,7 @@ analyzeROOT <- function(data, outcome, treatment_var, baseline_vars) {
     colnames(newdata) <- treatment_var
   } else {
     baseline_means <- sapply(data[baseline_vars], mean, na.rm = TRUE)
-    newdata <- as.data.frame(matrix(rep(baseline_means, each = length(trt_levels)),
+    newdata <- as.data.frame(matrix(rep(baseline_means, times = length(trt_levels)),
                                     nrow = length(trt_levels), byrow = TRUE))
     colnames(newdata) <- baseline_vars
     newdata[[treatment_var]] <- factor(trt_levels, levels = trt_levels)

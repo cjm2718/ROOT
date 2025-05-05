@@ -3,12 +3,13 @@ library(gamlss)
 analyzeROOT <- function(data, outcome, treatment_var, baseline_vars) {
   
   # Fit zero-inflated beta regression model
-  formula_mu <- reformulate(c(treatment_var, baseline_vars), response = outcome)
-  formula_pi <- reformulate(c(treatment_var, baseline_vars))
+  vars <- c(treatment_var, baseline_vars)
+  formula_mu <- reformulate(vars, response = outcome)
+  formula_pi <- reformulate(vars)
   
   fit <- gamlss(
     formula = formula_mu,
-    sigma.formula = ~ 1,  # fix precision 
+    sigma.formula = ~ 1,   
     nu.formula = formula_pi,
     family = BEZI,
     data = data,
@@ -16,17 +17,24 @@ analyzeROOT <- function(data, outcome, treatment_var, baseline_vars) {
   )
   
   # Set covariates for estimation of adjusted marginal means
-  baseline_means <- sapply(data[baseline_vars], mean, na.rm = TRUE)
   trt_levels <- levels(data[[treatment_var]])
-  newdata <- as.data.frame(matrix(rep(baseline_means, each = length(trt_levels)),
-                                  nrow = length(trt_levels), byrow = TRUE))
-  colnames(newdata) <- baseline_vars
-  newdata[[treatment_var]] <- factor(trt_levels, levels = trt_levels)
-  newdata <- newdata[, c(treatment_var, baseline_vars)]
+  
+  if (is.null(baseline_vars)) {
+    newdata <- data.frame(treatment = factor(trt_levels, levels = trt_levels))
+    colnames(newdata) <- treatment_var
+  } else {
+    baseline_means <- sapply(data[baseline_vars], mean, na.rm = TRUE)
+    newdata <- as.data.frame(matrix(rep(baseline_means, each = length(trt_levels)),
+                                    nrow = length(trt_levels), byrow = TRUE))
+    colnames(newdata) <- baseline_vars
+    newdata[[treatment_var]] <- factor(trt_levels, levels = trt_levels)
+    newdata <- newdata[, c(treatment_var, baseline_vars)]
+  }
+  
   
   # Design matrices
-  X_mu <- model.matrix(reformulate(c(treatment_var, baseline_vars)), data = newdata)
-  X_pi <- model.matrix(reformulate(c(treatment_var, baseline_vars)), data = newdata)
+  X_mu <- model.matrix(reformulate(vars), data = newdata)
+  X_pi <- model.matrix(reformulate(vars), data = newdata)
   
   # Extract and relabel coefficients 
   # (gamlss refers to logistic submodel coefficients as 'nu', rather than 'pi')
@@ -93,8 +101,8 @@ analyzeROOT <- function(data, outcome, treatment_var, baseline_vars) {
   }, simplify = FALSE))
   
   return(list(
+    model = fit,
     marginal_means = marginal_df,
-    pairwise_contrasts = contrast_df,
-    model = fit
-  ))
+    pairwise_contrasts = contrast_df)
+  )
 }
